@@ -13,3 +13,7 @@ Wet grass darkens. Keep the spray on one patch to create a puddle and move away 
 Serve the repository root with a static HTTP server such as `python3 -m http.server 8000` and open `http://localhost:8000`. The game uses Canvas 2D, pointer events, and optional Web Audio. It has no dependencies, accounts, telemetry, or server-side state. The lawn resets on reload.
 
 The interaction and public asset handling follow the [Lang Systems Core Development](https://github.com/langzonedev/LangSystems-Core-Development) UX and branding baselines. The backdrop is original generated garden artwork prepared for this game. The company outline mark is sourced from the live Lang Systems Arcade. The hose, hand, birdbath, cat and effects are drawn in code.
+
+## Human testing
+
+[Play WaterGrass on GitHub Pages](https://langzonedev.github.io/WaterGrass/). On a phone, drag the spray across the lawn, then keep it on one patch until a puddle forms. Move to the bowl and see whether the old puddle recedes while the birdbath fills.
