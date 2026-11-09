@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17221b">
+  <meta name="description" content="Water the lawn on a warm summer evening. A quiet browser game from Lang Systems Arcade.">
+  <title>WaterGrass · Lang Systems Arcade</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/drop.svg">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./game.mjs"></script>
+</head>
+<body>
+  <main class="yard" id="yard">
+    <canvas id="scene" tabindex="0" aria-label="Garden. Arrow keys aim. Space turns the water on or off." aria-describedby="aim-instructions"></canvas>
+    <div class="shade" aria-hidden="true"></div>
+    <header class="mast">
+      <a class="arcade glass" href="https://arcade.langsystems.com.au/"><span class="back" aria-hidden="true">←</span><img src="./assets/lang-systems-mark.png" alt=""><span>Lang Systems <strong>Arcade</strong></span></a>
+      <div class="tools">
+        <button class="glass icon-button" id="sound" type="button" aria-label="Sound" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path class="muted" d="m16 10 5 5m0-5-5 5"/><path class="audible" d="M15 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></svg></button>
+        <button class="glass icon-button" id="help" type="button" aria-label="How to play">?</button>
+      </div>
+    </header>
+    <section class="intro" id="intro" aria-labelledby="title">
+      <div class="eyebrow"><span class="sun-mark" aria-hidden="true"></span> THE EVENING SERIES <span class="divider"></span> 01</div>
+      <h1 id="title">Water<span>Grass</span></h1>
+      <p>The heat has gone out of the day.<br>Just you, the garden, and a running hose.</p>
+      <button class="start" id="start" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3.3 4.8 6.1 7.6 6.1 11.4a6.1 6.1 0 1 1-12.2 0C5.9 10.6 8.7 7.8 12 3Z"/><path d="M9 15a3 3 0 0 0 2.5 2.8"/></svg> Pick up the hose <span aria-hidden="true">→</span></button>
+      <div class="intro-note">A quiet summer evening</div>
+    </section>
+    <div class="readouts glass" id="readouts" hidden>
+      <div class="readout"><div class="readout-head"><span>Lawn watered</span><output id="coverage">0%</output></div><progress id="lawn-meter" aria-label="Lawn watered" max="100" value="0"></progress></div>
+      <div class="readout"><div class="readout-head"><span>Birdbath</span><output id="bath-value">Empty</output></div><progress id="bath-meter" aria-label="Birdbath fill" max="100" value="0"></progress></div>
+    </div>
+    <div class="location" aria-hidden="true"><span class="sun-mark"></span> THE BACK GARDEN <span class="divider"></span> GOLDEN HOUR</div>
+    <div class="game-ui" id="game-ui" hidden>
+      <p class="aim-instructions" id="aim-instructions"><span class="desktop-hint">Move your mouse to aim</span><span class="touch-hint">Touch and drag to aim</span><span class="keyboard-hint">Arrow keys aim · Space toggles flow</span></p>
+      <div class="dock glass">
+        <button class="flow" id="flow" type="button" aria-label="Water flow" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3.3 4.8 6.1 7.6 6.1 11.4a6.1 6.1 0 1 1-12.2 0C5.9 10.6 8.7 7.8 12 3Z"/><path d="M9 15a3 3 0 0 0 2.5 2.8"/></svg>
+          <span><small>HOSE</small><strong id="flow-text">Flow off</strong></span>
+        </button>
+        <div class="dock-controls">
+          <label class="nozzle"><span>Nozzle</span><select id="nozzle"><option value="shower">Shower</option><option value="mist">Mist</option><option value="jet">Jet</option></select></label>
+          <label class="pressure"><span>Pressure <output id="pressure-text" for="pressure">Balanced</output></span><input id="pressure" type="range" min="20" max="100" value="55"></label>
+        </div>
+      </div>
+    </div>
+    <noscript><p class="script-error">Enable JavaScript to play WaterGrass.</p></noscript>
+    <dialog id="guide" aria-labelledby="guide-title">
+      <form method="dialog" class="guide-card">
+        <button class="guide-close icon-button" type="submit" aria-label="Close instructions">×</button>
+        <div class="eyebrow"><span class="sun-mark" aria-hidden="true"></span> OUT IN THE YARD</div>
+        <h2 id="guide-title">Take your time.</h2>
+        <p>Move your mouse or drag a finger across the yard to aim. Use the hose button to start or stop the water.</p>
+        <p>Grass deepens in colour as it drinks. Water one spot for a while to make a puddle, or aim at the bowl to fill the birdbath.</p>
+        <p class="key-guide">Keyboard <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> to aim · <kbd>Space</kbd> to toggle the hose</p>
+        <button class="start guide-done" type="submit">Back to the garden <span aria-hidden="true">→</span></button>
+      </form>
+    </dialog>
+  </main>
+</body>
+</html>
