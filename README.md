@@ -4,7 +4,7 @@ An untimed first-person lawn watering game for [Lang Systems Arcade](https://arc
 
 ## Play
 
-Pick up the hose to start the balanced shower. Drag across the garden to move the hose. Drag the circle near its tip to turn the nozzle. The hose keeps running when you lift your finger. Use the hose button to toggle flow. With the garden focused, the arrow keys move the hose, Shift with Left or Right turns the nozzle, and Space toggles flow. Sound is optional.
+Pick up the hose to start the balanced shower. Drag anywhere in the garden to pivot the hose. Sweep left and right, drag up for the far grass, and drag down for the grass near you. The hose keeps its angle when you lift your finger. Use the hose button to toggle flow. With the garden focused, the arrow keys pivot the hose and Space toggles flow. Sound is optional.
 
 Wet grass darkens. Keep the spray on one patch to create a puddle and move away to watch it soak in. Aim at the birdbath's bowl to fill it and see it overflow. A neighbourhood cat occasionally crosses the grass.
 

@@ -61,9 +61,29 @@ export function birdbath(ctx, bath, basin, time) {
   ctx.restore();
 }
 
-export function drawHose(ctx, mouth, heading, width, active, time) {
-  const scale = Math.min(1.19, Math.max(.82, width / 650));
-  const turn = heading - Math.atan2(-18, -30);
+const nozzleAxis = Math.atan2(-18, -30);
+const wristLocal = { x: 96, y: 87 };
+
+export function hosePose(wrist, directionPoint, width) {
+  const scale = Math.min(1.07, Math.max(.59, width / 465));
+  const dx = directionPoint.x - wrist.x;
+  const dy = directionPoint.y - wrist.y;
+  // The outlet sits off the wrist's centreline. Account for that offset so
+  // the barrel and the water's launch direction line up at every angle.
+  const lateral = (wristLocal.x * Math.sin(nozzleAxis) - wristLocal.y * Math.cos(nozzleAxis)) * scale;
+  const heading = Math.atan2(dy, dx) - Math.asin(lateral / Math.hypot(dx, dy));
+  const turn = heading - nozzleAxis;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  const mouth = {
+    x: wrist.x - (wristLocal.x * cos - wristLocal.y * sin) * scale,
+    y: wrist.y - (wristLocal.x * sin + wristLocal.y * cos) * scale,
+  };
+  return { mouth, heading, turn, scale, wrist };
+}
+
+export function drawHose(ctx, pose, active, time) {
+  const { mouth, turn, scale, wrist } = pose;
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
   const project = (x, y) => ({
@@ -72,7 +92,7 @@ export function drawHose(ctx, mouth, heading, width, active, time) {
   });
   const connector = project(66, 83);
   const bend = project(91, 118);
-  const exitX = Math.min(width + 16, mouth.x + 165 * scale);
+  const exitX = wrist.x + 92 * scale;
   ctx.save();
   ctx.lineCap = 'round';
   ctx.beginPath();
@@ -90,7 +110,7 @@ export function drawHose(ctx, mouth, heading, width, active, time) {
   const [left, right] = wristA.x < wristB.x ? [wristA, wristB] : [wristB, wristA];
   const wristX = (left.x + right.x) / 2;
   const wristY = (left.y + right.y) / 2;
-  const armX = Math.min(width + 55, wristX + 95 * scale);
+  const armX = wrist.x + 33 * scale;
   const armY = Math.max(752, wristY + 70 * scale);
   const midY = wristY + (armY - wristY) * .56;
   ctx.beginPath();

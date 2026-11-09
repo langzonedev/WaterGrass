@@ -2,6 +2,7 @@ export const HEIGHT = 720;
 export const LAWN_TOP = 354;
 export const COLS = 64;
 export const ROWS = 32;
+export const GRAVITY = 700;
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const patterns = {
   mist: { rate: 230, spread: .24, reach: .72, size: .71, volume: .56 },
@@ -65,13 +66,12 @@ export class Basin {
 
 // Each droplet keeps the velocity it had at launch, so sweeping the nozzle
 // bends the live spray without dragging water that is already in the air.
-export function launch(from, heading, pressure, pattern, random = Math.random) {
+export function launch(from, heading, speed, duration, pressure, pattern, random = Math.random) {
   const angle = heading + (random() * 2 - 1) * pattern.spread;
-  const speed = (310 + pressure * 550) * pattern.reach * (.9 + random() * .2);
-  const duration = (.31 + pressure * .37) * (.9 + random() * .2);
+  const velocity = speed * (.94 + random() * .12);
   return {
-    from: { x: from.x, y: from.y }, duration, gravity: 700,
-    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, age: 0,
+    from: { x: from.x, y: from.y }, duration: duration * (.94 + random() * .12),
+    vx: Math.cos(angle) * velocity, vy: Math.sin(angle) * velocity, age: 0,
     size: (.67 + random() * .88) * pattern.size,
     shine: .35 + random() * .62,
     volume: pattern.volume * (.49 + pressure * .93),
@@ -81,6 +81,6 @@ export function launch(from, heading, pressure, pattern, random = Math.random) {
 export function position(drop, time) {
   return {
     x: drop.from.x + drop.vx * time,
-    y: drop.from.y + drop.vy * time + drop.gravity * time ** 2 / 2,
+    y: drop.from.y + drop.vy * time + GRAVITY * time ** 2 / 2,
   };
 }

@@ -12,7 +12,7 @@
 </head>
 <body>
   <main class="yard" id="yard">
-    <canvas id="scene" tabindex="0" aria-label="Garden. Arrow keys move the hose. Shift plus Left or Right turns the nozzle. Space toggles water flow." aria-describedby="aim-instructions"></canvas>
+    <canvas id="scene" tabindex="0" aria-label="Garden. Drag or use the arrow keys to pivot the hose. Space toggles water flow."></canvas>
     <div class="shade" aria-hidden="true"></div>
     <header class="mast">
       <a class="arcade glass" href="https://arcade.langsystems.com.au/"><span class="back" aria-hidden="true">←</span><img src="./assets/lang-systems-mark.png" alt=""><span>Lang Systems <strong>Arcade</strong></span></a>
@@ -34,7 +34,6 @@
     </div>
     <div class="location" aria-hidden="true"><span class="sun-mark"></span> THE BACK GARDEN <span class="divider"></span> GOLDEN HOUR</div>
     <div class="game-ui" id="game-ui" hidden>
-      <p class="aim-instructions" id="aim-instructions"><span class="pointer-hint">Drag to move the hose · Drag the circle to turn it</span><span class="keyboard-hint">Arrows move · Shift + ← / → turns · Space toggles flow</span></p>
       <div class="dock glass">
         <button class="flow" id="flow" type="button" aria-label="Water flow" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3.3 4.8 6.1 7.6 6.1 11.4a6.1 6.1 0 1 1-12.2 0C5.9 10.6 8.7 7.8 12 3Z"/><path d="M9 15a3 3 0 0 0 2.5 2.8"/></svg>
@@ -52,9 +51,9 @@
         <button class="guide-close icon-button" type="submit" aria-label="Close instructions">×</button>
         <div class="eyebrow"><span class="sun-mark" aria-hidden="true"></span> OUT IN THE YARD</div>
         <h2 id="guide-title">Take your time.</h2>
-        <p>Drag across the yard to move the hose. Drag the small circle near its tip to turn the nozzle. The hose button starts or stops the water.</p>
+        <p>Drag anywhere in the garden to pivot the hose. Sweep left or right, or drag up for the far grass and down for the grass near you. The hose button starts or stops the water.</p>
         <p>Grass deepens in colour as it drinks. Water one spot for a while to make a puddle, or aim at the bowl to fill the birdbath.</p>
-        <p class="key-guide">Use the arrow keys to move, <kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> to turn, and <kbd>Space</kbd> to toggle the hose.</p>
+        <p class="key-guide">Use the arrow keys to pivot the hose and <kbd>Space</kbd> to toggle the water.</p>
         <button class="start guide-done" type="submit">Back to the garden <span aria-hidden="true">→</span></button>
       </form>
     </dialog>

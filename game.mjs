@@ -1,5 +1,5 @@
-import { HEIGHT, LAWN_TOP, COLS, ROWS, Soil, Basin, clamp, patterns, launch, position } from './water.mjs';
-import { birdbath, drawCat, drawHose, oval } from './artwork.mjs';
+import { HEIGHT, LAWN_TOP, COLS, ROWS, GRAVITY, Soil, Basin, clamp, patterns, launch, position } from './water.mjs';
+import { birdbath, drawCat, drawHose, hosePose, oval } from './artwork.mjs';
 import { GardenAudio } from './audio.mjs';
 
 const find = (id) => document.getElementById(id);
@@ -30,14 +30,13 @@ const keys = new Set();
 const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 const view = { width: 1080, plateWidth: 1080, left: 0, scale: 1 };
 const bath = { x: 0, y: 367, scale: 1 };
-const mouth = { x: 0, y: 557 };
-const placement = { x: 0, y: 557 };
-let heading = -2.48;
+const desired = { sweep: -.12, reach: .43 };
+const aim = { ...desired };
+let pose;
 const cat = { active: false, x: 0, y: 425, scale: .9, direction: 1, startled: 0, flee: false, next: 10 };
 let running = false;
 let flowing = false;
 let pointer = null;
-let turningWithKeys = false;
 let previous = 0;
 let time = 0;
 let nextHUD = 0;
@@ -61,18 +60,11 @@ function resize() {
   canvas.height = Math.max(1, Math.round(bounds.height * ratio));
   ctx.setTransform(canvas.width / view.width, 0, 0, canvas.height / HEIGHT, 0, 0);
   if (running) {
-    moveHose(placement.x / previousWidth * view.width, placement.y);
-    mouth.x = placement.x;
-    mouth.y = placement.y;
     pointer = null;
     yard.classList.remove('dragging');
     cat.x = cat.x / previousWidth * view.width;
     drops.length = 0;
     splashes.length = 0;
-  } else {
-    moveHose(view.width * (view.width < 620 ? .76 : .81), 557);
-    mouth.x = placement.x;
-    mouth.y = placement.y;
   }
   bath.x = view.width * (view.width < 610 ? .72 : .745);
   bath.scale = clamp(view.width / 745, .81, 1.05);
@@ -95,57 +87,25 @@ function begin() {
   canvas.focus({ preventScroll: true });
 }
 
-function pointerPosition(event) {
-  const rect = canvas.getBoundingClientRect();
-  return { x: (event.clientX - rect.left) / view.scale, y: (event.clientY - rect.top) / view.scale };
-}
-
-function moveHose(x, y) {
-  const edge = 19 / view.scale;
-  placement.x = clamp(x, edge, view.width - edge);
-  placement.y = clamp(y, edge, HEIGHT - 82 / view.scale);
-}
-
-function turnHandle() {
-  const reach = 50 / view.scale;
-  const edge = 21 / view.scale;
-  const dx = Math.cos(heading) * reach;
-  const dy = Math.sin(heading) * reach;
-  const x = clamp(mouth.x + dx, edge, view.width - edge);
-  const y = clamp(mouth.y + dy, edge, HEIGHT - 82 / view.scale);
-  if (Math.hypot(x - mouth.x, y - mouth.y) >= 29 / view.scale) return { x, y };
-  return { x: mouth.x - dx, y: mouth.y - dy };
-}
-
-function dragHose(point) {
-  if (pointer.turn) {
-    const dx = point.x - mouth.x;
-    const dy = point.y - mouth.y;
-    if (Math.hypot(dx, dy) > 12 / view.scale) heading = Math.atan2(dy, dx) + pointer.angleOffset;
-  } else {
-    moveHose(point.x + pointer.offsetX, point.y + pointer.offsetY);
-  }
-  yard.classList.remove('keyboard');
+function steer(sweep, reach) {
+  desired.sweep = clamp(desired.sweep + sweep, -1, 1);
+  desired.reach = clamp(desired.reach + reach, 0, 1);
 }
 
 canvas.addEventListener('pointerdown', (event) => {
   if (!running || pointer !== null || event.button !== 0) return;
-  const point = pointerPosition(event);
-  const handle = turnHandle();
-  const turn = Math.hypot(point.x - handle.x, point.y - handle.y) < 22 / view.scale;
-  const grabbed = Math.hypot(point.x - mouth.x, point.y - mouth.y) < 70 / view.scale;
-  pointer = {
-    id: event.pointerId, turn,
-    angleOffset: heading - Math.atan2(point.y - mouth.y, point.x - mouth.x),
-    offsetX: grabbed ? mouth.x - point.x : 0,
-    offsetY: grabbed ? mouth.y - point.y : 0,
-  };
+  pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
   canvas.setPointerCapture(event.pointerId);
-  if (!turn) dragHose(point);
   yard.classList.add('dragging');
 });
 canvas.addEventListener('pointermove', (event) => {
-  if (pointer?.id === event.pointerId) dragHose(pointerPosition(event));
+  if (pointer?.id !== event.pointerId) return;
+  steer(
+    (event.clientX - pointer.x) / (Math.min(view.width, 880) * view.scale * .34),
+    (pointer.y - event.clientY) / (HEIGHT * view.scale * .30),
+  );
+  pointer.x = event.clientX;
+  pointer.y = event.clientY;
 });
 function release(event) {
   if (pointer?.id !== event.pointerId) return;
@@ -157,20 +117,15 @@ canvas.addEventListener('pointercancel', release);
 canvas.addEventListener('lostpointercapture', release);
 canvas.addEventListener('keydown', (event) => {
   if (!running || guide.open) return;
-  turningWithKeys = event.shiftKey;
   if (event.key in directions) {
     event.preventDefault();
     keys.add(event.key);
-    yard.classList.add('keyboard');
   } else if (event.code === 'Space') {
     event.preventDefault();
     if (!event.repeat) setFlow(!flowing);
   }
 });
-window.addEventListener('keyup', (event) => {
-  turningWithKeys = event.shiftKey;
-  keys.delete(event.key);
-});
+window.addEventListener('keyup', (event) => keys.delete(event.key));
 canvas.addEventListener('blur', () => keys.clear());
 document.addEventListener('visibilitychange', () => {
   keys.clear();
@@ -249,26 +204,38 @@ function update(dt) {
   time += dt;
   for (const key of keys) {
     const [x, y] = directions[key];
-    if (turningWithKeys) heading += x * 2.4 * dt;
-    else moveHose(placement.x + x * 255 * dt, placement.y + y * 255 * dt);
+    steer(x * 1.35 * dt, -y * .85 * dt);
   }
-  const blend = reduced.matches || pointer?.turn ? 1 : 1 - Math.exp(-32 * dt);
-  mouth.x += (placement.x - mouth.x) * blend;
-  mouth.y += (placement.y - mouth.y) * blend;
+  const blend = reduced.matches ? 1 : 1 - Math.exp(-21 * dt);
+  aim.sweep += (desired.sweep - aim.sweep) * blend;
+  aim.reach += (desired.reach - aim.reach) * blend;
+  const pattern = patterns[nozzle];
+  const reach = clamp(aim.reach + (pressure - .55) * .48 + (pattern.reach - 1) * .31, 0, 1);
+  const duration = .71 + reach * .06;
+  const targetY = 658 + (LAWN_TOP + 4 - 658) * reach;
+  const directionPoint = {
+    x: view.width * (.5 + aim.sweep * .49),
+    y: targetY - GRAVITY * duration ** 2 / 2,
+  };
+  pose = hosePose({ x: view.width * .53, y: 640 }, directionPoint, view.width);
   basin.settle(dt);
   soil.drain(dt);
   updateCat(dt);
   if (flowing) {
-    const pattern = patterns[nozzle];
-    carry += dt * pattern.rate * (.64 + pressure * .65);
+    const rate = pattern.rate * (.64 + pressure * .65);
+    const speed = Math.hypot(directionPoint.x - pose.mouth.x, directionPoint.y - pose.mouth.y) / duration;
+    carry += dt * rate;
     while (carry >= 1) {
-      drops.push(launch(mouth, heading, pressure, pattern));
       carry--;
+      const drop = launch(pose.mouth, pose.heading, speed, duration, pressure, pattern);
+      // Evenly space the drops emitted between animation frames.
+      drop.age = carry / rate - dt;
+      drops.push(drop);
     }
   }
   for (let i = drops.length - 1; i >= 0; i--) {
     const drop = drops[i];
-    const from = position(drop, drop.age);
+    const from = position(drop, Math.max(0, drop.age));
     drop.age = Math.min(drop.duration, drop.age + dt);
     const to = position(drop, drop.age);
     const bowlHit = sprayHit(from, to, bath.x, bath.y, 39 * bath.scale, 10 * bath.scale);
@@ -380,38 +347,9 @@ function paint() {
     drawCat(ctx, cat, reduced.matches ? 0 : time);
   }
   birdbath(ctx, bath, basin, reduced.matches ? 0 : time);
-  if (!running) return;
-  if (!flowing) {
-    const preview = launch(mouth, heading, pressure, patterns[nozzle], () => .5);
-    const spot = position(preview, preview.duration);
-    if (spot.y >= LAWN_TOP) oval(ctx, spot.x, spot.y, 8, 5, null, '#fbf2c8a1', 1);
-  }
+  if (!running || !pose) return;
   paintWater();
-  drawHose(ctx, mouth, heading, view.width, flowing && !guide.open, time);
-  paintTurnHandle();
-}
-
-function paintTurnHandle() {
-  const { x, y } = turnHandle();
-  const radius = 13 / view.scale;
-  ctx.save();
-  ctx.strokeStyle = '#e7f0bbac';
-  ctx.lineWidth = 1 / view.scale;
-  ctx.setLineDash([2 / view.scale, 4 / view.scale]);
-  ctx.beginPath();
-  ctx.moveTo(mouth.x, mouth.y);
-  ctx.lineTo(x, y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  oval(ctx, x, y, radius, radius, pointer?.turn ? '#536046' : '#273b30dd', '#e7f0bbee', 1.35 / view.scale);
-  ctx.translate(x, y);
-  ctx.rotate(heading);
-  ctx.beginPath();
-  ctx.moveTo(-radius * .38, -radius * .36);
-  ctx.lineTo(radius * .37, 0);
-  ctx.lineTo(-radius * .38, radius * .36);
-  ctx.stroke();
-  ctx.restore();
+  drawHose(ctx, pose, flowing && !guide.open, time);
 }
 
 function renderHUD() {

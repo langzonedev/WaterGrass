@@ -62,9 +62,6 @@ progress::-moz-progress-bar { background: var(--accent); }
 #bath-meter::-webkit-progress-value { background: #a9d9d8; }
 #bath-meter::-moz-progress-bar { background: #a9d9d8; }
 .game-ui { position: absolute; bottom: max(14px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(460px, calc(100% - 24px)); pointer-events: none; }
-.aim-instructions { margin: 0 0 8px; text-align: center; font-size: .74rem; font-weight: 650; color: #fff5d8; text-shadow: 0 2px 8px #08150d, 0 1px 3px #08150d; }
-.keyboard-hint, .yard.keyboard .pointer-hint { display: none; }
-.yard.keyboard .keyboard-hint { display: inline; }
 .dock { pointer-events: auto; display: flex; align-items: stretch; gap: 15px; padding: 7px; border-radius: 17px; }
 .flow { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; min-width: 103px; min-height: 50px; border: 1px solid #e1f3b447; border-radius: 11px; padding: 0 8px; color: var(--accent); background: #cce69816; text-align: left; }
 .flow[aria-pressed="true"] { background: var(--accent); color: var(--ink); }
