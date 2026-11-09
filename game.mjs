@@ -1,4 +1,4 @@
-import { HEIGHT, LAWN_TOP, COLS, ROWS, GRAVITY, Soil, Basin, clamp, patterns, launch, position } from './water.mjs';
+import { HEIGHT, LAWN_TOP, COLS, ROWS, Soil, Basin, clamp, patterns, gravityDrop, spraySource, launch, position } from './water.mjs';
 import { birdbath, drawCat, drawHose, hosePose, oval } from './artwork.mjs';
 import { GardenAudio } from './audio.mjs';
 
@@ -162,12 +162,12 @@ function sprayHit(from, to, x, y, radiusX, radiusY) {
   return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
 }
 
-function addSplash(x, y, kind) {
-  if (reduced.matches || splashes.length >= 100) return;
+function addSplash(x, y, kind, strength = 1) {
+  if (reduced.matches || splashes.length >= 120) return;
   const angle = Math.random() * Math.PI * 2;
-  const speed = 15 + Math.random() * 52;
-  splashes.push({ x, y, vx: Math.cos(angle) * speed, vy: -13 - Math.random() * 54,
-    age: 0, life: .16 + Math.random() * .3, kind });
+  const speed = (14 + Math.random() * 59) * strength;
+  splashes.push({ x, y, vx: Math.cos(angle) * speed, vy: -(18 + Math.random() * 62) * strength,
+    age: 0, life: .12 + (.10 + Math.random() * .22) * strength, size: .4 + strength * .58, kind });
 }
 
 function land(drop, { x, y }) {
@@ -176,7 +176,7 @@ function land(drop, { x, y }) {
   const row = (y - LAWN_TOP) / (HEIGHT - LAWN_TOP) * ROWS - .5;
   const depth = clamp(row / ROWS, 0, 1);
   soil.deposit(col, row, .0095 * drop.volume, 1.32 + depth * .64, .92 + depth * .69);
-  if (Math.random() < .18) addSplash(x, y, 'grass');
+  if (Math.random() < .28 * drop.splash) addSplash(x, y, 'grass', drop.splash);
 }
 
 function updateCat(dt) {
@@ -210,24 +210,23 @@ function update(dt) {
   aim.sweep += (desired.sweep - aim.sweep) * blend;
   aim.reach += (desired.reach - aim.reach) * blend;
   const pattern = patterns[nozzle];
-  const reach = clamp(aim.reach + (pressure - .55) * .48 + (pattern.reach - 1) * .31, 0, 1);
-  const duration = .71 + reach * .06;
-  const targetY = 658 + (LAWN_TOP + 4 - 658) * reach;
-  const directionPoint = {
+  const duration = .74 + aim.reach * .04;
+  const target = {
     x: view.width * (.5 + aim.sweep * .49),
-    y: targetY - GRAVITY * duration ** 2 / 2,
+    y: 658 + (LAWN_TOP + 4 - 658) * aim.reach,
   };
+  const directionPoint = { x: target.x, y: target.y - gravityDrop(duration, patterns.shower.drag) };
   pose = hosePose({ x: view.width * .53, y: 640 }, directionPoint, view.width);
   basin.settle(dt);
   soil.drain(dt);
   updateCat(dt);
   if (flowing) {
-    const rate = pattern.rate * (.64 + pressure * .65);
-    const speed = Math.hypot(directionPoint.x - pose.mouth.x, directionPoint.y - pose.mouth.y) / duration;
+    const source = spraySource(pose, target, duration);
+    const rate = pattern.rate * (.49 + pressure * .92);
     carry += dt * rate;
     while (carry >= 1) {
       carry--;
-      const drop = launch(pose.mouth, pose.heading, speed, duration, pressure, pattern);
+      const drop = launch(source, pressure, nozzle);
       // Evenly space the drops emitted between animation frames.
       drop.age = carry / rate - dt;
       drops.push(drop);
@@ -241,7 +240,7 @@ function update(dt) {
     const bowlHit = sprayHit(from, to, bath.x, bath.y, 39 * bath.scale, 10 * bath.scale);
     if (bowlHit) {
       basin.fill(drop.volume * .00143);
-      if (Math.random() < .28) addSplash(bowlHit.x, bowlHit.y, 'bowl');
+      if (Math.random() < .38 * drop.splash) addSplash(bowlHit.x, bowlHit.y, 'bowl', drop.splash);
     } else {
       if (cat.active && !cat.startled && !cat.flee && sprayHit(from, to, cat.x, cat.y - 13, 28, 16)) {
         cat.startled = .64;
@@ -303,28 +302,53 @@ function paintSoil() {
   }
 }
 
+const sprayInk = {
+  mist: { trail: .006, width: .73, body: '#b7e5d87a', glint: '#fff1d49e' },
+  shower: { trail: .025, width: 1.24, body: '#a9d9d2a1', glint: '#fff0cdd2' },
+  jet: { trail: .067, width: 2.45, body: '#8bc4c7a3', glint: '#f9ffe0d6' },
+};
+
+function paintSpray() {
+  const paths = {
+    mist: { body: new Path2D(), glint: new Path2D() },
+    shower: { body: new Path2D(), glint: new Path2D() },
+    jet: { body: new Path2D(), glint: new Path2D() },
+  };
+  for (const drop of drops) {
+    const ink = sprayInk[drop.nozzle];
+    const progress = drop.age / drop.duration;
+    const trail = ink.trail * drop.size * (1 - .68 * progress ** 2);
+    const end = position(drop, drop.age);
+    const start = position(drop, Math.max(0, drop.age - trail));
+    const { body, glint } = paths[drop.nozzle];
+    body.moveTo(start.x, start.y);
+    body.lineTo(end.x, end.y);
+    if (drop.shine || (drop.nozzle === 'jet' && progress < .49)) {
+      glint.moveTo(start.x * .66 + end.x * .34, start.y * .66 + end.y * .34);
+      glint.lineTo(end.x, end.y);
+    }
+  }
+  for (const [nozzle, ink] of Object.entries(sprayInk)) {
+    const { body, glint } = paths[nozzle];
+    ctx.strokeStyle = ink.body;
+    ctx.lineWidth = ink.width;
+    ctx.stroke(body);
+    ctx.strokeStyle = ink.glint;
+    ctx.lineWidth = ink.width * .54;
+    ctx.stroke(glint);
+  }
+}
+
 function paintWater() {
   ctx.lineCap = 'round';
-  for (let group = 0; group < 3; group++) {
-    ctx.strokeStyle = ['#98cecd71', '#d0ebe8af', '#fff1c8bd'][group];
-    ctx.lineWidth = [.85, 1.38, 1.1][group];
-    ctx.beginPath();
-    for (let i = group; i < drops.length; i += 3) {
-      const d = drops[i];
-      const finish = position(d, d.age);
-      const start = position(d, Math.max(0, d.age - (.01 + d.shine * .018) * d.size));
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(finish.x, finish.y);
-    }
-    ctx.stroke();
-  }
+  paintSpray();
   for (const s of splashes) {
     const isSpill = s.kind === 'spill';
     const age = s.age;
     const x = s.x + s.vx * age * (isSpill ? .18 : 1);
     const y = s.y + (isSpill ? 14 : s.vy) * age + (isSpill ? 340 : 125) * age ** 2;
-    ctx.globalAlpha = (1 - age / s.life) * .7;
-    oval(ctx, x, y, isSpill ? 1.15 : .87, isSpill ? 2.5 : 1, '#e6f1da');
+    ctx.globalAlpha = (1 - age / s.life) * .73;
+    oval(ctx, x, y, isSpill ? 1.15 : s.size, isSpill ? 2.5 : s.size * 1.26, '#e6f1da');
   }
   ctx.globalAlpha = 1;
   if (basin.overflow > .02) {

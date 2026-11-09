@@ -53,8 +53,10 @@ export class GardenAudio {
     const now = ctx.currentTime;
     const playing = this.enabled && visible;
     this.master.gain.setTargetAtTime(playing ? .52 : 0, now, .14);
-    this.water.gain.setTargetAtTime(playing && flowing ? .12 + pressure * .13 : 0, now, .095);
-    this.waterFilter.frequency.setTargetAtTime(nozzle === 'mist' ? 2400 : nozzle === 'jet' ? 1070 : 1620, now, .14);
+    const waterTone = nozzle === 'mist' ? 2700 : nozzle === 'jet' ? 960 : 1550;
+    const waterGain = nozzle === 'mist' ? .72 : nozzle === 'jet' ? 1.13 : 1;
+    this.water.gain.setTargetAtTime(playing && flowing ? (.075 + pressure * .21) * waterGain : 0, now, .095);
+    this.waterFilter.frequency.setTargetAtTime(waterTone * (.85 + pressure * .25), now, .14);
     if (!playing || now < this.nextBird) return;
     this.nextBird = now + 6 + Math.random() * 13;
     for (let i = 0; i < 3; i++) {
