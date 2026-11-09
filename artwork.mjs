@@ -61,9 +61,51 @@ export function birdbath(ctx, bath, basin, time) {
   ctx.restore();
 }
 
-export function drawHose(ctx, mouth, target, width, active, time) {
+export function drawHose(ctx, mouth, heading, width, active, time) {
   const scale = Math.min(1.19, Math.max(.82, width / 650));
-  const turn = Math.max(-.51, Math.min(.61, Math.atan2(target.y - mouth.y, target.x - mouth.x) + 2.13));
+  const turn = heading - Math.atan2(-18, -30);
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  const project = (x, y) => ({
+    x: mouth.x + (x * cos - y * sin) * scale,
+    y: mouth.y + (x * sin + y * cos) * scale,
+  });
+  const connector = project(66, 83);
+  const bend = project(91, 118);
+  const exitX = Math.min(width + 16, mouth.x + 165 * scale);
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(connector.x, connector.y);
+  ctx.bezierCurveTo(bend.x, bend.y, exitX - 45, 670, exitX, 748);
+  for (const [colour, thickness] of [['#15281d', 22], ['#506943', 15], ['#8b9b62', 3]]) {
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = thickness * scale;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const wristA = project(89, 71);
+  const wristB = project(79, 100);
+  const [left, right] = wristA.x < wristB.x ? [wristA, wristB] : [wristB, wristA];
+  const wristX = (left.x + right.x) / 2;
+  const wristY = (left.y + right.y) / 2;
+  const armX = Math.min(width + 55, wristX + 95 * scale);
+  const armY = Math.max(752, wristY + 70 * scale);
+  const midY = wristY + (armY - wristY) * .56;
+  ctx.beginPath();
+  ctx.moveTo(left.x, left.y);
+  ctx.quadraticCurveTo(wristX - 12 * scale, midY, armX - 42 * scale, armY);
+  ctx.lineTo(armX + 40 * scale, armY);
+  ctx.quadraticCurveTo(wristX + 49 * scale, midY, right.x, right.y);
+  ctx.closePath();
+  ctx.fillStyle = gradient(ctx, wristX - 25 * scale, wristY, armX + 20 * scale, armY,
+    [[0, '#95967a'], [.4, '#59664f'], [1, '#34463a']]);
+  ctx.fill();
+  ctx.strokeStyle = '#314038';
+  ctx.lineWidth = 1.4 * scale;
+  ctx.stroke();
+
   ctx.save();
   ctx.translate(mouth.x, mouth.y);
   ctx.rotate(turn);
@@ -71,15 +113,7 @@ export function drawHose(ctx, mouth, target, width, active, time) {
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
 
-  // A loop of rubber disappears below the frame behind the hand.
-  shape(ctx, 'M73 78 C109 119 127 164 137 220', null, '#15281d', 22);
-  shape(ctx, 'M73 78 C109 119 127 164 137 220', null, '#506943', 15);
-  shape(ctx, 'M73 78 C109 119 127 164 137 220', null, '#8b9b62', 3);
-
   const skin = gradient(ctx, 64, 37, 118, 101, [[0, '#ebba91'], [.31, '#d99770'], [.7, '#ac6e54'], [1, '#70493d']]);
-  const cuff = gradient(ctx, 93, 75, 132, 118, [[0, '#b3b192'], [.36, '#7b8264'], [1, '#374b3b']]);
-  shape(ctx, 'M89 71 Q104 67 119 81 L215 180 L163 236 L100 126 Q89 111 79 100Z', cuff, '#314038', 1.4);
-  shape(ctx, 'M106 84 Q97 93 94 112 M113 90 L163 147 M112 113 L143 160', null, '#d9c9a441', 1.25);
   shape(ctx, 'M58 42 Q70 34 81 47 Q86 54 88 61 L113 80 Q115 93 99 105 Q83 95 70 91 Q54 88 50 77 Q45 62 58 42Z', skin, '#754c3d', 1.25);
 
   const grip = gradient(ctx, 35, 23, 76, 72, [[0, '#6c755e'], [.41, '#3e4b3c'], [1, '#202f28']]);

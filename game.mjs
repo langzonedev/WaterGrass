@@ -31,12 +31,13 @@ const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], A
 const view = { width: 1080, plateWidth: 1080, left: 0, scale: 1 };
 const bath = { x: 0, y: 367, scale: 1 };
 const mouth = { x: 0, y: 557 };
-const aim = { x: 0, y: 470 };
-const desired = { x: 0, y: 470 };
+const placement = { x: 0, y: 557 };
+let heading = -2.48;
 const cat = { active: false, x: 0, y: 425, scale: .9, direction: 1, startled: 0, flee: false, next: 10 };
 let running = false;
 let flowing = false;
 let pointer = null;
+let turningWithKeys = false;
 let previous = 0;
 let time = 0;
 let nextHUD = 0;
@@ -60,17 +61,21 @@ function resize() {
   canvas.height = Math.max(1, Math.round(bounds.height * ratio));
   ctx.setTransform(canvas.width / view.width, 0, 0, canvas.height / HEIGHT, 0, 0);
   if (running) {
-    aim.x = aim.x / previousWidth * view.width;
-    desired.x = desired.x / previousWidth * view.width;
+    moveHose(placement.x / previousWidth * view.width, placement.y);
+    mouth.x = placement.x;
+    mouth.y = placement.y;
+    pointer = null;
+    yard.classList.remove('dragging');
     cat.x = cat.x / previousWidth * view.width;
     drops.length = 0;
     splashes.length = 0;
   } else {
-    desired.x = aim.x = view.width * .44;
+    moveHose(view.width * (view.width < 620 ? .76 : .81), 557);
+    mouth.x = placement.x;
+    mouth.y = placement.y;
   }
   bath.x = view.width * (view.width < 610 ? .72 : .745);
   bath.scale = clamp(view.width / 745, .81, 1.05);
-  mouth.x = view.width * (view.width < 620 ? .76 : .81);
 }
 
 function setFlow(next) {
@@ -90,30 +95,69 @@ function begin() {
   canvas.focus({ preventScroll: true });
 }
 
-function point(event) {
+function pointerPosition(event) {
   const rect = canvas.getBoundingClientRect();
-  desired.x = clamp((event.clientX - rect.left) / view.scale, 10, view.width - 10);
-  desired.y = clamp((event.clientY - rect.top) / view.scale, 306, 701);
+  return { x: (event.clientX - rect.left) / view.scale, y: (event.clientY - rect.top) / view.scale };
+}
+
+function moveHose(x, y) {
+  const edge = 19 / view.scale;
+  placement.x = clamp(x, edge, view.width - edge);
+  placement.y = clamp(y, edge, HEIGHT - 82 / view.scale);
+}
+
+function turnHandle() {
+  const reach = 50 / view.scale;
+  const edge = 21 / view.scale;
+  const dx = Math.cos(heading) * reach;
+  const dy = Math.sin(heading) * reach;
+  const x = clamp(mouth.x + dx, edge, view.width - edge);
+  const y = clamp(mouth.y + dy, edge, HEIGHT - 82 / view.scale);
+  if (Math.hypot(x - mouth.x, y - mouth.y) >= 29 / view.scale) return { x, y };
+  return { x: mouth.x - dx, y: mouth.y - dy };
+}
+
+function dragHose(point) {
+  if (pointer.turn) {
+    const dx = point.x - mouth.x;
+    const dy = point.y - mouth.y;
+    if (Math.hypot(dx, dy) > 12 / view.scale) heading = Math.atan2(dy, dx) + pointer.angleOffset;
+  } else {
+    moveHose(point.x + pointer.offsetX, point.y + pointer.offsetY);
+  }
   yard.classList.remove('keyboard');
 }
 
 canvas.addEventListener('pointerdown', (event) => {
   if (!running || pointer !== null || event.button !== 0) return;
-  pointer = event.pointerId;
-  canvas.setPointerCapture(pointer);
-  point(event);
+  const point = pointerPosition(event);
+  const handle = turnHandle();
+  const turn = Math.hypot(point.x - handle.x, point.y - handle.y) < 22 / view.scale;
+  const grabbed = Math.hypot(point.x - mouth.x, point.y - mouth.y) < 70 / view.scale;
+  pointer = {
+    id: event.pointerId, turn,
+    angleOffset: heading - Math.atan2(point.y - mouth.y, point.x - mouth.x),
+    offsetX: grabbed ? mouth.x - point.x : 0,
+    offsetY: grabbed ? mouth.y - point.y : 0,
+  };
+  canvas.setPointerCapture(event.pointerId);
+  if (!turn) dragHose(point);
+  yard.classList.add('dragging');
 });
 canvas.addEventListener('pointermove', (event) => {
-  if (running && (pointer === event.pointerId || (pointer === null && event.pointerType === 'mouse'))) point(event);
+  if (pointer?.id === event.pointerId) dragHose(pointerPosition(event));
 });
 function release(event) {
-  if (pointer === event.pointerId) pointer = null;
+  if (pointer?.id !== event.pointerId) return;
+  pointer = null;
+  yard.classList.remove('dragging');
 }
 canvas.addEventListener('pointerup', release);
 canvas.addEventListener('pointercancel', release);
 canvas.addEventListener('lostpointercapture', release);
 canvas.addEventListener('keydown', (event) => {
   if (!running || guide.open) return;
+  turningWithKeys = event.shiftKey;
   if (event.key in directions) {
     event.preventDefault();
     keys.add(event.key);
@@ -123,7 +167,10 @@ canvas.addEventListener('keydown', (event) => {
     if (!event.repeat) setFlow(!flowing);
   }
 });
-window.addEventListener('keyup', (event) => keys.delete(event.key));
+window.addEventListener('keyup', (event) => {
+  turningWithKeys = event.shiftKey;
+  keys.delete(event.key);
+});
 canvas.addEventListener('blur', () => keys.clear());
 document.addEventListener('visibilitychange', () => {
   keys.clear();
@@ -149,29 +196,15 @@ soundButton.addEventListener('click', async () => {
 });
 new ResizeObserver(resize).observe(canvas);
 
-function targetsBath(target, padding = 0) {
-  return ((target.x - bath.x) / (39 * bath.scale + padding)) ** 2
-    + ((target.y - bath.y) / (10 * bath.scale + padding)) ** 2 < 1;
-}
-
-function nextDrop(pattern) {
-  const depth = clamp((aim.y - LAWN_TOP) / (HEIGHT - LAWN_TOP), 0, 1);
-  const spread = (24 + depth * 31) * pattern.spread * (.67 + pressure * .57);
-  const radius = Math.sqrt(Math.random());
-  const angle = Math.random() * Math.PI * 2;
-  const onBowl = targetsBath(aim, 9);
-  const centreX = onBowl ? aim.x * .56 + bath.x * .44 : aim.x;
-  const centreY = onBowl ? aim.y * .30 + bath.y * .70 : Math.max(LAWN_TOP + 3, aim.y);
-  const target = {
-    x: centreX + Math.cos(angle) * radius * spread,
-    y: centreY + Math.sin(angle) * radius * spread * (onBowl ? .32 : .49 + depth * .14),
-  };
-  if (!onBowl) target.y = Math.max(LAWN_TOP + 1, target.y);
-  if (cat.active && !cat.flee && !cat.startled && Math.abs(target.x - cat.x) < 30 && Math.abs(target.y - cat.y + 12) < 25) {
-    target.y = cat.y - 8;
-  }
-  const from = { x: mouth.x + (Math.random() - .5) * 4, y: mouth.y + (Math.random() - .5) * 4 };
-  return launch(from, target, pressure, pattern);
+function sprayHit(from, to, x, y, radiusX, radiusY) {
+  const startX = (from.x - x) / radiusX;
+  const startY = (from.y - y) / radiusY;
+  const stepX = (to.x - from.x) / radiusX;
+  const stepY = (to.y - from.y) / radiusY;
+  const length = stepX * stepX + stepY * stepY;
+  const t = length ? clamp(-(startX * stepX + startY * stepY) / length, 0, 1) : 0;
+  if ((startX + stepX * t) ** 2 + (startY + stepY * t) ** 2 > 1) return null;
+  return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
 }
 
 function addSplash(x, y, kind) {
@@ -182,17 +215,8 @@ function addSplash(x, y, kind) {
     age: 0, life: .16 + Math.random() * .3, kind });
 }
 
-function land(drop) {
-  const { x, y } = drop.to;
-  if (targetsBath(drop.to)) {
-    basin.fill(drop.volume * .00143);
-    if (Math.random() < .28) addSplash(x, y, 'bowl');
-    return;
-  }
-  if (cat.active && !cat.startled && !cat.flee && Math.abs(x - cat.x) < 29 && Math.abs(y - cat.y + 9) < 23) {
-    cat.startled = .64;
-    cat.direction *= -1;
-  }
+function land(drop, { x, y }) {
+  if (y < LAWN_TOP || y > HEIGHT || x < view.left || x > view.left + view.plateWidth) return;
   const col = (x - view.left) / view.plateWidth * COLS - .5;
   const row = (y - LAWN_TOP) / (HEIGHT - LAWN_TOP) * ROWS - .5;
   const depth = clamp(row / ROWS, 0, 1);
@@ -225,15 +249,12 @@ function update(dt) {
   time += dt;
   for (const key of keys) {
     const [x, y] = directions[key];
-    desired.x = clamp(desired.x + x * 255 * dt, 10, view.width - 10);
-    desired.y = clamp(desired.y + y * 255 * dt, 306, 701);
+    if (turningWithKeys) heading += x * 2.4 * dt;
+    else moveHose(placement.x + x * 255 * dt, placement.y + y * 255 * dt);
   }
-  const blend = reduced.matches ? 1 : 1 - Math.exp(-17 * dt);
-  aim.x += (desired.x - aim.x) * blend;
-  aim.y += (desired.y - aim.y) * blend;
-  const sway = reduced.matches ? 0 : Math.sin(time * 1.55) * 1.25;
-  mouth.x = view.width * (view.width < 620 ? .76 : .81) + (aim.x - view.width * .5) * .071;
-  mouth.y = 555 + (aim.y - 465) * .066 + sway;
+  const blend = reduced.matches || pointer?.turn ? 1 : 1 - Math.exp(-32 * dt);
+  mouth.x += (placement.x - mouth.x) * blend;
+  mouth.y += (placement.y - mouth.y) * blend;
   basin.settle(dt);
   soil.drain(dt);
   updateCat(dt);
@@ -241,15 +262,27 @@ function update(dt) {
     const pattern = patterns[nozzle];
     carry += dt * pattern.rate * (.64 + pressure * .65);
     while (carry >= 1) {
-      drops.push(nextDrop(pattern));
+      drops.push(launch(mouth, heading, pressure, pattern));
       carry--;
     }
   }
   for (let i = drops.length - 1; i >= 0; i--) {
     const drop = drops[i];
-    drop.age += dt;
-    if (drop.age >= drop.duration) {
-      land(drop);
+    const from = position(drop, drop.age);
+    drop.age = Math.min(drop.duration, drop.age + dt);
+    const to = position(drop, drop.age);
+    const bowlHit = sprayHit(from, to, bath.x, bath.y, 39 * bath.scale, 10 * bath.scale);
+    if (bowlHit) {
+      basin.fill(drop.volume * .00143);
+      if (Math.random() < .28) addSplash(bowlHit.x, bowlHit.y, 'bowl');
+    } else {
+      if (cat.active && !cat.startled && !cat.flee && sprayHit(from, to, cat.x, cat.y - 13, 28, 16)) {
+        cat.startled = .64;
+        cat.direction *= -1;
+      }
+      if (drop.age >= drop.duration) land(drop, to);
+    }
+    if (bowlHit || drop.age >= drop.duration) {
       drops[i] = drops[drops.length - 1];
       drops.pop();
     }
@@ -349,11 +382,36 @@ function paint() {
   birdbath(ctx, bath, basin, reduced.matches ? 0 : time);
   if (!running) return;
   if (!flowing) {
-    oval(ctx, aim.x, aim.y, 8, 5, null, '#fbf2c8a1', 1);
-    oval(ctx, aim.x, aim.y, 1.45, 1.45, '#fbf2c8c0');
+    const preview = launch(mouth, heading, pressure, patterns[nozzle], () => .5);
+    const spot = position(preview, preview.duration);
+    if (spot.y >= LAWN_TOP) oval(ctx, spot.x, spot.y, 8, 5, null, '#fbf2c8a1', 1);
   }
   paintWater();
-  drawHose(ctx, mouth, aim, view.width, flowing && !guide.open, time);
+  drawHose(ctx, mouth, heading, view.width, flowing && !guide.open, time);
+  paintTurnHandle();
+}
+
+function paintTurnHandle() {
+  const { x, y } = turnHandle();
+  const radius = 13 / view.scale;
+  ctx.save();
+  ctx.strokeStyle = '#e7f0bbac';
+  ctx.lineWidth = 1 / view.scale;
+  ctx.setLineDash([2 / view.scale, 4 / view.scale]);
+  ctx.beginPath();
+  ctx.moveTo(mouth.x, mouth.y);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  oval(ctx, x, y, radius, radius, pointer?.turn ? '#536046' : '#273b30dd', '#e7f0bbee', 1.35 / view.scale);
+  ctx.translate(x, y);
+  ctx.rotate(heading);
+  ctx.beginPath();
+  ctx.moveTo(-radius * .38, -radius * .36);
+  ctx.lineTo(radius * .37, 0);
+  ctx.lineTo(-radius * .38, radius * .36);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function renderHUD() {
