@@ -18,4 +18,4 @@ The interaction and public asset handling follow the [Lang Systems Core Developm
 
 [Play WaterGrass on GitHub Pages](https://langzonedev.github.io/WaterGrass/). On a phone, drag the spray across the lawn, then keep it on one patch until a puddle forms. Move to the bowl and see whether the old puddle recedes while the birdbath fills.
 
-Cat meow recording by [Dan Crosby](https://commons.wikimedia.org/wiki/File:Meow.ogg), licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). The bundled version was converted to mono MP3.
+All sound effects, including the cat call, are synthesised by the game with Web Audio.
