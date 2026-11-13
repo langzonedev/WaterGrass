@@ -1,6 +1,6 @@
 import { HEIGHT, LAWN_TOP, COLS, ROWS, Soil, Basin, clamp, patterns, gravityDrop, spraySource, launch, position } from './water.mjs';
 import { birdbath, drawCat, drawHose, hosePose, oval } from './artwork.mjs';
-import { GardenAudio } from './audio.mjs';
+import { GardenAudio } from './audio.mjs?v=2';
 
 const find = (id) => document.getElementById(id);
 const yard = find('yard');
@@ -42,6 +42,7 @@ let time = 0;
 let nextHUD = 0;
 let carry = 0;
 let spillCarry = 0;
+let puddleImpact = 0;
 let pressure = Number(pressureInput.value) / 100;
 let nozzle = nozzleInput.value;
 
@@ -176,6 +177,8 @@ function land(drop, { x, y }) {
   const row = (y - LAWN_TOP) / (HEIGHT - LAWN_TOP) * ROWS - .5;
   const depth = clamp(row / ROWS, 0, 1);
   soil.deposit(col, row, .0095 * drop.volume, 1.32 + depth * .64, .92 + depth * .69);
+  const cell = clamp(Math.round(row), 0, ROWS - 1) * COLS + clamp(Math.round(col), 0, COLS - 1);
+  puddleImpact = Math.min(1, puddleImpact + Math.min(1, soil.surface[cell] * 5) * drop.splash * .14);
   if (Math.random() < .28 * drop.splash) addSplash(x, y, 'grass', drop.splash);
 }
 
@@ -244,6 +247,7 @@ function update(dt) {
     } else {
       if (cat.active && !cat.startled && !cat.flee && sprayHit(from, to, cat.x, cat.y - 13, 28, 16)) {
         cat.startled = .64;
+        audio.meow();
         cat.direction *= -1;
       }
       if (drop.age >= drop.duration) land(drop, to);
@@ -393,7 +397,8 @@ function frame(now) {
   if (running && !guide.open) update(dt);
   if (now >= nextHUD) {
     if (running) renderHUD();
-    audio.update(running && flowing && !guide.open, pressure, nozzle, !document.hidden);
+    audio.update(running && flowing && !guide.open, pressure, nozzle, !document.hidden, guide.open ? 0 : puddleImpact);
+    puddleImpact = 0;
     nextHUD = now + 110;
   }
   paint();

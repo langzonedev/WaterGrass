@@ -11,6 +11,7 @@ export class GardenAudio {
     try {
       if (!this.context) this.create();
       await this.context.resume();
+      this.loadMeow();
       this.enabled = this.context.state === 'running';
     } catch {
       this.enabled = false;
@@ -43,11 +44,50 @@ export class GardenAudio {
     this.water = ctx.createGain();
     this.water.gain.value = 0;
     loop.connect(this.waterFilter).connect(this.water).connect(this.master);
+    const splashFilter = ctx.createBiquadFilter();
+    splashFilter.type = 'bandpass';
+    splashFilter.frequency.value = 780;
+    splashFilter.Q.value = 1.6;
+    this.splash = ctx.createGain();
+    this.splash.gain.value = 0;
+    const splashLoop = ctx.createBufferSource();
+    const splashBuffer = ctx.createBuffer(1, data.length, ctx.sampleRate);
+    const splashData = splashBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i += Math.floor(ctx.sampleRate * (.014 + Math.random() * .032))) {
+      const length = Math.min(data.length - i, Math.floor(ctx.sampleRate * (.009 + Math.random() * .021)));
+      for (let j = 0; j < length; j++) splashData[i + j] += data[i + j] * (1 - j / length) ** 2;
+    }
+    splashLoop.buffer = splashBuffer;
+    splashLoop.loop = true;
+    splashLoop.connect(splashFilter).connect(this.splash).connect(this.master);
+    splashLoop.start();
     loop.start();
     this.nextBird = ctx.currentTime + 2;
   }
 
-  update(flowing, pressure, nozzle, visible) {
+  loadMeow() {
+    if (this.meowLoad) return;
+    this.meowLoad = fetch(new URL('./assets/cat-meow.mp3', import.meta.url))
+      .then(response => {
+        if (!response.ok) throw new Error('Cat sound unavailable');
+        return response.arrayBuffer();
+      })
+      .then(bytes => this.context.decodeAudioData(bytes))
+      .then(buffer => { this.meowBuffer = buffer; })
+      .catch(() => { this.meowLoad = null; });
+  }
+
+  meow() {
+    if (!this.enabled || document.hidden || !this.meowBuffer || this.context.state !== 'running') return;
+    const source = this.context.createBufferSource();
+    const gain = this.context.createGain();
+    gain.gain.value = .45;
+    source.buffer = this.meowBuffer;
+    source.connect(gain).connect(this.master);
+    source.start();
+  }
+
+  update(flowing, pressure, nozzle, visible, puddleImpact = 0) {
     if (!this.context) return;
     const ctx = this.context;
     const now = ctx.currentTime;
@@ -56,6 +96,7 @@ export class GardenAudio {
     const waterTone = nozzle === 'mist' ? 2700 : nozzle === 'jet' ? 960 : 1550;
     const waterGain = nozzle === 'mist' ? .72 : nozzle === 'jet' ? 1.13 : 1;
     this.water.gain.setTargetAtTime(playing && flowing ? (.075 + pressure * .21) * waterGain : 0, now, .095);
+    this.splash.gain.setTargetAtTime(playing ? puddleImpact * .34 : 0, now, .055);
     this.waterFilter.frequency.setTargetAtTime(waterTone * (.85 + pressure * .25), now, .14);
     if (!playing || now < this.nextBird) return;
     this.nextBird = now + 6 + Math.random() * 13;
