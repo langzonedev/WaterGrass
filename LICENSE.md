@@ -6,4 +6,4 @@ Anyone may play the game for free through the official [Lang Systems Arcade](htt
 
 Except for those permissions and uses permitted by law, you need prior written permission from the applicable rights holder to reproduce, adapt, redistribute, rehost, or sell the game or its protected code, artwork, or audio, including monetising a copy. Giving credit alone does not grant that permission.
 
-Third-party material remains subject to its own licence. See the repository’s credits and notices.\n\nThe bundled cat meow is credited in the README and remains licensed under CC BY-SA 3.0.
+Third-party material remains subject to its own licence. See the repository’s credits and notices.
