@@ -11,7 +11,6 @@ export class GardenAudio {
     try {
       if (!this.context) this.create();
       await this.context.resume();
-      this.loadMeow();
       this.enabled = this.context.state === 'running';
     } catch {
       this.enabled = false;
@@ -65,24 +64,39 @@ export class GardenAudio {
     this.nextBird = ctx.currentTime + 2;
   }
 
-  loadMeow() {
-    if (this.meowLoad) return;
-    this.meowLoad = fetch(new URL('./assets/cat-meow.mp3', import.meta.url))
-      .then(response => {
-        if (!response.ok) throw new Error('Cat sound unavailable');
-        return response.arrayBuffer();
-      })
-      .then(bytes => this.context.decodeAudioData(bytes))
-      .then(buffer => { this.meowBuffer = buffer; })
-      .catch(() => { this.meowLoad = null; });
+  createMeow() {
+    const rate = this.context.sampleRate;
+    const duration = .61;
+    const buffer = this.context.createBuffer(1, Math.ceil(rate * duration), rate);
+    const samples = buffer.getChannelData(0);
+    let phase = 0;
+    for (let i = 0; i < samples.length; i++) {
+      const time = i / rate;
+      const progress = time / duration;
+      const pitch = 490 + 310 * Math.sin(Math.PI * progress ** .55) - 180 * progress;
+      phase += 2 * Math.PI * pitch / rate;
+      const envelope = Math.min(1, time / .035, (duration - time) / .11) * (1 - .45 * progress);
+      // Move the resonances as the mouth closes to give the call its vowel change.
+      const first = 1050 - 570 * progress;
+      const second = 2450 - 1250 * progress;
+      let voice = 0;
+      for (let harmonic = 1; harmonic <= 9; harmonic++) {
+        const frequency = pitch * harmonic;
+        const resonance = Math.exp(-(((frequency - first) / 390) ** 2)) +
+          .48 * Math.exp(-(((frequency - second) / 560) ** 2));
+        voice += Math.sin(harmonic * phase) * resonance / Math.sqrt(harmonic);
+      }
+      samples[i] = envelope * (.44 * voice + .022 * (Math.random() * 2 - 1));
+    }
+    return buffer;
   }
 
   meow() {
-    if (!this.enabled || document.hidden || !this.meowBuffer || this.context.state !== 'running') return;
+    if (!this.enabled || document.hidden || this.context.state !== 'running') return;
     const source = this.context.createBufferSource();
     const gain = this.context.createGain();
     gain.gain.value = .45;
-    source.buffer = this.meowBuffer;
+    source.buffer = this.meowBuffer ??= this.createMeow();
     source.connect(gain).connect(this.master);
     source.start();
   }
