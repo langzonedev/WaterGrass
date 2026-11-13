@@ -1,6 +1,6 @@
 import { HEIGHT, LAWN_TOP, COLS, ROWS, Soil, Basin, clamp, patterns, gravityDrop, spraySource, launch, position } from './water.mjs';
 import { birdbath, drawCat, drawHose, hosePose, oval } from './artwork.mjs';
-import { GardenAudio } from './audio.mjs?v=2';
+import { GardenAudio } from './audio.mjs?v=3';
 
 const find = (id) => document.getElementById(id);
 const yard = find('yard');
